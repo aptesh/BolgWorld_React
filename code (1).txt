@@ -1,0 +1,151 @@
+///////
+import React from 'react'
+
+export const Postss = ({ data }) => {
+    return (
+        <div className='container p-1'>{data && data.map((post) => (
+            <div className="card m-2" style={{ width: "100%" }} key={post.id}>
+                <div className="card-body">
+                    <h5 className="card-title">{post.id} {post.title}</h5>
+                    <p className="card-text">{post.body}</p>
+                </div>
+            </div>
+        ))}
+        </div>
+    )
+}
+
+export default Postss
+
+///////////
+import { useForm } from 'react-hook-form';
+import * as yup from 'yup';
+import { yupResolver } from '@hookform/resolvers/yup';
+
+const schema = yup.object().shape({
+    title: yup.string().required(),
+    content: yup.string().required(),
+});
+
+const Form = ({ newPost, setNewPost, handleCreate }) => {
+    const { register, handleSubmit, formState: { errors } } = useForm({
+        resolver: yupResolver(schema)
+    });
+
+    const onSubmit = data => {
+        console.log(data);
+        handleCreate();
+    };
+
+    return (
+        <form className='border p-5 bg-light' onSubmit={handleSubmit(onSubmit)}>
+            <h2>Write your own Blog ✍ </h2>
+            <div className="mb-3">
+                <label htmlFor="createTitle" className="form-label">Title</label>
+                <input name="title" {...register('title')} placeholder='Enter Title' type="text" className="form-control" id="createTitle" value={newPost.title} onChange={(e) => setNewPost({ ...newPost, title: e.target.value })} />
+                {errors.title && <p>Title is required</p>}
+            </div>
+
+            <div className="mb-3">
+                <label htmlFor="createBody" className="form-label">Content</label>
+                <textarea name="content"  {...register('content')} placeholder='Enter your content here..' className="form-control" id="createBody" rows="3" value={newPost.body} onChange={(e) => setNewPost({ ...newPost, body: e.target.value })}></textarea>
+                {errors.content && <p>Content is required</p>}
+                <button type='submit' className="btn btn-success mt-1">Post</button>
+            </div>
+        </form>
+    );
+};
+
+export default Form;
+
+//////////////
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import Form from './Form';
+import Pagination from './Pagination';
+import FetchPosts from './FetchPosts';
+
+
+const CreatePostPage = () => {
+    const [data, setData] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [postsPerPage] = useState(10);
+    const [newPost, setNewPost] = useState({ title: '', body: '' });
+    const [isCreateFormVisible, setIsCreateFormVisible] = useState(false);
+
+    useEffect(() => {
+        axios.get('https://jsonplaceholder.typicode.com/posts')
+            .then(response => setData(response.data))
+            .catch(error => console.error('Error fetching data', error));
+    }, []);
+
+    const handleCreate = () => {
+        axios.post('https://jsonplaceholder.typicode.com/posts', newPost)
+            .then(response => {
+                setData([...data, response.data]);
+                setNewPost({ title: '', body: '' });
+                setIsCreateFormVisible(false);
+                setCurrentPage(1);
+            })
+            .catch(error => console.error('Error creating post', error));
+    };
+    const handleCreateClick = () => {
+        setIsCreateFormVisible(true);
+    };
+
+    const indexOfLastPost = currentPage * postsPerPage;
+    const indexOfFirstPost = indexOfLastPost - postsPerPage;
+    const currentPosts = data.slice(indexOfFirstPost, indexOfLastPost);
+
+    // Change page
+    const paginate = pageNumber => setCurrentPage(pageNumber);
+    return (
+        <div>
+            <Form newPost={newPost} setNewPost={setNewPost} handleCreate={handleCreate} />
+            <div className='p-4'>
+
+                <h3>Blogs</h3>
+                <FetchPosts data={currentPosts} />
+                <Pagination
+                    postsPerPage={postsPerPage}
+                    totalPosts={data.length}
+                    paginate={paginate}
+                />
+
+            </div>
+        </div>
+    );
+};
+
+export default CreatePostPage;
+
+
+
+
+////////////
+import React from 'react';
+
+const Pagination = ({ postsPerPage, totalPosts, paginate }) => {
+    const pageNumbers = [];
+
+    for (let i = 1; i <= Math.ceil(totalPosts / postsPerPage); i++) {
+        pageNumbers.push(i);
+    }
+
+    return (
+        <nav>
+            <ul className='pagination'>
+                {pageNumbers.map(number => (
+                    <li key={number} className='page-item'>
+                        <a onClick={() => paginate(number)} href='#' className='page-link'>
+                            {number}
+                        </a>
+                    </li>
+                ))}
+            </ul>
+        </nav>
+    );
+};
+
+export default Pagination;
